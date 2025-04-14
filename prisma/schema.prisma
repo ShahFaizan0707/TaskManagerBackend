@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int               @id @default(autoincrement())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  email            String            @unique
+  name             String?
+  password         String            // Will store bcrypt hashed password
+  
+  // Project management relations
+  createdProjects  Project[]         @relation("ProjectCreator")
+  projectMemberships ProjectMember[]
+  assignedTasks    TaskAssignment[]
+  
+  // Communications
+  projectMessages  ProjectMessage[]
+  taskMessages     TaskMessage[]
+
+  @@map("users")
+}
+
+model Project {
+  id           Int             @id @default(autoincrement())
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  name         String
+  description  String?
+  
+  // Creator relation
+  creatorId    Int
+  creator      User            @relation("ProjectCreator", fields: [creatorId], references: [id])
+  
+  // Relations
+  tasks        Task[]
+  members      ProjectMember[]
+  
+  // Project-level communication
+  messages     ProjectMessage[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  projectId    Int
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model Task {
+  id           Int              @id @default(autoincrement())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  title        String
+  description  String?
+  priority      TaskPriority @default(LOW)
+  status       TaskStatus       @default(TODO)
+  dueDate      DateTime?
+  
+  // Relation to Project
+  projectId    Int
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  assignments  TaskAssignment[]
+  messages     TaskMessage[]
+  
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  UNDER_REVIEW
+  COMPLETED
+}
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+
+model TaskAssignment {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  taskId       Int
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([taskId, userId])
+  @@map("task_assignments")
+}
+
+// Project-level communication
+model ProjectMessage {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  content      String
+  
+  // Relations
+  projectId    Int
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Who sent the message
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  
+  @@map("project_messages")
+}
+
+// Task-level communication
+model TaskMessage {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  content      String
+  
+  // Relations
+  taskId       Int
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // Who sent the message
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  
+  @@map("task_messages")
+}
